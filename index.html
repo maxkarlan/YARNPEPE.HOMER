@@ -70,15 +70,14 @@ function setup() {
             }
         }
 
-        function keyPressed() {
-            if (key === '1') {
-                for (let streams of streamGroups) {
-                    for (let s of streams) {
-                        s.changeMode();
-                    }
-                }
-            }
+function mousePressed() {
+    for (let streams of streamGroups) {
+        for (let s of streams) {
+            s.changeMode();
         }
+    }
+}
+
 
 
         class Stream {
