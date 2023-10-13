@@ -158,6 +158,8 @@ update() {
     let lastPoint = this.points[this.points.length - 1];
     let newPoint;
 
+    let speed = this.attractMode ? 4 : 4; // Double the speed when attractMode is on
+
     if (this.attractMode) {
         if (this.isOutsideAllImages(lastPoint) || this.insideImage || this.isOverAssignedImage(lastPoint)) {
             this.currentAngle = this.calculateAngleTowardsImage(lastPoint, this.assignedImageIdx);
@@ -172,12 +174,12 @@ update() {
     let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI / 4, PI / 4);
     this.currentAngle += angleVariation;
 
-    newPoint = p5.Vector.fromAngle(this.currentAngle).mult(3).add(lastPoint);
+    newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint);  // Using the speed variable here
 
     // If in attractMode and inside assigned image, check if the new point is outside
     if (this.attractMode && this.insideImage && !this.isOverAssignedImage(newPoint)) {
         this.currentAngle += PI; // Flip direction
-        newPoint = p5.Vector.fromAngle(this.currentAngle).mult(3).add(lastPoint);
+        newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint); // Using the speed variable here too
     }
 
     this.points.push(newPoint);
@@ -190,6 +192,7 @@ update() {
     // Update the insideImage flag based on the last point
     this.insideImage = this.isOverAssignedImage(lastPoint);
 }
+
             calculateAngleAwayFromClosestImageCenter(point) {
                 let closestDistance = Infinity;
                 let closestImageCenter;
