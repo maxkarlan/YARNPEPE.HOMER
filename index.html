@@ -22,54 +22,69 @@
     <script>
         let images = [null, null, null, null, null];
         const transparencyThreshold = 128;
-        const numOfStreams = 1500;
+        const numOfStreams = 1250;
+        let imgCenter; // To store the cached center
+      	let pointImageOverlapCache = {};  // To store overlap results for each point
 
-function preload() {
-    for (let i = 0; i < 5; i++) {
-        loadImage(`image${i + 1}.png`, img => {
-            img.resize(img.width * 4, img.height * 4);
-            images[i] = img;
-        });
-    }
-}
-
-
-function setup() {
-    createCanvas(windowWidth, windowHeight);
-    background(135, 206, 235);
-
-const colors = [
-    [0, 96, 0],
-    [96, 216, 0],
-    [255, 253, 208],
-    [145, 56, 49],
-    [53, 57, 53]
-];
-
-
-    const percentages = [0.6, 0.15, 0.15, 0.05, 0.05];
-
-    streamGroups = [];
-    for (let j = 0; j < 5; j++) {
-        let streams = [];
-        let streamCountForImage = Math.round(numOfStreams * percentages[j]);
-        for (let i = 0; i < streamCountForImage; i++) {
-            streams.push(new Stream(colors[j], j));
-        }
-        streamGroups.push(streams);
-    }
-}
-
-        function draw() {
-            background(135, 206, 235);
-
-            for (let streams of streamGroups) {
-                for (let s of streams) {
-                    s.update();
-                    s.display();
-                }
+        function preload() {
+            for (let i = 0; i < 5; i++) {
+                loadImage(`image${i + 1}.png`, img => {
+                    img.resize(img.width * 4, img.height * 4);
+                    images[i] = img;
+                });
             }
         }
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            imgCenter = createVector(width / 2, height / 2);  // Compute center once
+            background(135, 206, 235);
+
+            const colors = [
+                [0, 96, 0],
+                [96, 216, 0],
+                [255, 253, 208],
+                [145, 56, 49],
+                [53, 57, 53]
+            ];
+            const percentages = [0.6, 0.15, 0.15, 0.05, 0.05];
+            streamGroups = [];
+
+            for (let j = 0; j < 5; j++) {
+                let streams = [];
+                let streamCountForImage = Math.round(numOfStreams * percentages[j]);
+                for (let i = 0; i < streamCountForImage; i++) {
+                    streams.push(new Stream(colors[j], j));
+                }
+                streamGroups.push(streams);
+            }
+        }
+
+function isOverAnyImageCached(point) {
+    let cacheKey = `${point.x},${point.y}`;
+
+    // Use the cached result if available
+    if (pointImageOverlapCache.hasOwnProperty(cacheKey)) {
+        return pointImageOverlapCache[cacheKey];
+    }
+
+    let result = isOverAnyImage(point);
+    pointImageOverlapCache[cacheKey] = result;  // Cache the result
+
+    return result;
+}
+
+function draw() {
+    background(135, 206, 235);
+    pointImageOverlapCache = {};  // Clear the cache for each frame
+
+    for (let streams of streamGroups) {
+        for (let s of streams) {
+            s.update();
+            s.display();
+        }
+    }
+}
 
 function mousePressed() {
     for (let streams of streamGroups) {
@@ -97,6 +112,10 @@ function mousePressed() {
             changeMode() {
                 this.attractMode = !this.attractMode;
             }
+          
+          	isOverAnyImage(point) {
+  					  return isOverAnyImageCached(point);  // Use the cached function instead
+						}
 
             initStream() {
                 let startX = random(width);
@@ -171,35 +190,32 @@ update() {
     // Update the insideImage flag based on the last point
     this.insideImage = this.isOverAssignedImage(lastPoint);
 }
-
-calculateAngleAwayFromClosestImageCenter(point) {
-    let closestDistance = Infinity;
-    let closestImageCenter;
-    let imgCenter = createVector(width / 2, height / 2);
+            calculateAngleAwayFromClosestImageCenter(point) {
+                let closestDistance = Infinity;
+                let closestImageCenter;
     
-    for (let img of images) {
-        let distance = dist(point.x, point.y, imgCenter.x, imgCenter.y);
-        if (distance < closestDistance && this.isOverImage(point, img)) {
-            closestDistance = distance;
-            closestImageCenter = imgCenter;
-        }
-    }
+                for (let img of images) {
+                    let distance = dist(point.x, point.y, imgCenter.x, imgCenter.y);
+                    if (distance < closestDistance && this.isOverImage(point, img)) {
+                        closestDistance = distance;
+                        closestImageCenter = imgCenter;
+                    }
+                }
 
-    if (closestImageCenter) {
-        return p5.Vector.sub(point, closestImageCenter).heading();
-    }
-    
-    return random(TWO_PI);
-}
+                if (closestImageCenter) {
+                    return p5.Vector.sub(point, closestImageCenter).heading();
+                }
+                
+                return random(TWO_PI);
+            }
 
-calculateAngleTowardsImage(point, imgIdx) {
-    if (this.insideImage) {
-        return random(TWO_PI);
-    }
-    let imgCenter = createVector(width / 2, height / 2);
-    let angleTowardsImage = p5.Vector.sub(imgCenter, point).heading();
-    return angleTowardsImage;
-}
+            calculateAngleTowardsImage(point, imgIdx) {
+                if (this.insideImage) {
+                    return random(TWO_PI);
+                }
+                let angleTowardsImage = p5.Vector.sub(imgCenter, point).heading();
+                return angleTowardsImage;
+            }
 
             display() {
                 noFill();
