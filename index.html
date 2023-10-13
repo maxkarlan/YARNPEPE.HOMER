@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,85 +16,119 @@
         }
     </style>
 </head>
+
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <script>
-        let hotdogImg;
-        let streams = [];
-        const numOfStreams = 1000;
+        let images = [];
         const transparencyThreshold = 128;
+        const numOfStreams = 800;
 
         function preload() {
-            hotdogImg = loadImage("sadPepeFull.png");
-        }
-
-        function setup() {
-            createCanvas(windowWidth, windowHeight);
-            background(255);
-
-            // Initialize streams
-            for (let i = 0; i < numOfStreams; i++) {
-                let col = color(random(100,255), 0, random(0,155)); 
-                streams.push(new Stream(col));
+            for (let i = 0; i < 5; i++) {
+                loadImage(`image${i + 1}.png`, img => {
+                    img.resize(img.width * 4, img.height * 4);
+                    images.push(img);
+                });
             }
         }
+
+function setup() {
+    createCanvas(windowWidth, windowHeight);
+    background(255);
+
+    const colors = [
+        [0, random(64, 128), 0],
+        [random(64, 124), random(180, 252), 0],
+        [255, 253, 208],
+        [145, 56, 49],
+        [53, 57, 53]
+    ];
+
+    const percentages = [0.5, 0.25, 0.15, 0.05, 0.05];
+
+    streamGroups = [];
+    for (let j = 0; j < 5; j++) {
+        let streams = [];
+        let streamCountForImage = Math.round(numOfStreams * percentages[j]);
+        for (let i = 0; i < streamCountForImage; i++) {
+            streams.push(new Stream(colors[j], j));
+        }
+        streamGroups.push(streams);
+    }
+}
 
         function draw() {
             background(255);
 
-            for (let s of streams) {
-                s.update();
-                s.display();
+            for (let streams of streamGroups) {
+                for (let s of streams) {
+                    s.update();
+                    s.display();
+                }
             }
         }
-      
-let attractMode = false;
 
-function keyPressed() {
-    if (key === '1') {
-        attractMode = !attractMode; 
-        for (let s of streams) {
-            s.changeMode(attractMode);
+        function keyPressed() {
+            if (key === '1') {
+                for (let streams of streamGroups) {
+                    for (let s of streams) {
+                        s.changeMode();
+                    }
+                }
+            }
         }
-    }
-}
+
 
         class Stream {
-            constructor(color) {
+            constructor(color, assignedImageIdx) {
                 this.color = color;
                 this.points = [];
                 this.noiseOffset = random(1000);
                 this.currentAngle = random(TWO_PI);
+                this.attractMode = false;
+                this.assignedImageIdx = assignedImageIdx;
+                this.insideImage = false;
                 this.initStream();
+              	this.insideImage = false;
+            }
+
+            changeMode() {
+                this.attractMode = !this.attractMode;
             }
 
             initStream() {
                 let startX = random(width);
                 let startY = random(height);
-                while (this.isOverHotdog(createVector(startX, startY))) {
+
+                while (this.isOverAnyImage(createVector(startX, startY))) {
                     startX = random(width);
                     startY = random(height);
                 }
+
                 this.points.push(createVector(startX, startY));
             }
-          
-          calculateAngleAwayFromHotdog(point) {
-    let hotdogCenter = createVector(width / 2, height / 2);
-    let angleAwayFromHotdog = p5.Vector.sub(point, hotdogCenter).heading();
-    return angleAwayFromHotdog;
-}
 
-          
-   changeMode(attractToHotdog) {
-        this.attractMode = attractToHotdog;
-        this.insideHotdog = false;
-    }
+            isOutsideAllImages(point) {
+                return !this.isOverAnyImage(point);
+            }
 
-            isOverHotdog(point) {
-                let imgX = point.x - (width / 2 - hotdogImg.width / 2);
-                let imgY = point.y - (height / 2 - hotdogImg.height / 2);
-                if (imgX >= 0 && imgX < hotdogImg.width && imgY >= 0 && imgY < hotdogImg.height) {
-                    let pixelColor = hotdogImg.get(imgX, imgY);
+            isOverAnyImage(point) {
+                for (let img of images) {
+                    if (this.isOverImage(point, img)) return true;
+                }
+                return false;
+            }
+
+            isOverAssignedImage(point) {
+                return this.isOverImage(point, images[this.assignedImageIdx]);
+            }
+
+            isOverImage(point, img) {
+                let imgX = point.x - (width / 2 - img.width / 2);
+                let imgY = point.y - (height / 2 - img.height / 2);
+                if (imgX >= 0 && imgX < img.width && imgY >= 0 && imgY < img.height) {
+                    let pixelColor = img.get(imgX, imgY);
                     return alpha(pixelColor) > transparencyThreshold;
                 }
                 return false;
@@ -101,57 +136,54 @@ function keyPressed() {
 
 update() {
     let lastPoint = this.points[this.points.length - 1];
-    
-    // If attractMode is on and not yet inside the hotdog, move towards it.
-    if (this.attractMode && !this.insideHotdog) {
-        this.currentAngle = this.calculateAngleTowardsHotdog(lastPoint);
+    let newPoint;
+
+    if (this.attractMode) {
+        if (this.isOutsideAllImages(lastPoint) || this.insideImage || this.isOverAssignedImage(lastPoint)) {
+            this.currentAngle = this.calculateAngleTowardsImage(lastPoint, this.assignedImageIdx);
+        }
+    } else {
+        if (this.isOutsideAllImages(lastPoint) || this.insideImage) {
+            for (let img of images) {
+                newPoint = p5.Vector.fromAngle(this.currentAngle).mult(3).add(lastPoint);
+                if (this.isOverImage(newPoint, img)) {
+                    this.currentAngle += PI;
+                    break;
+                }
+            }
+        }
     }
 
-    // Add Perlin noise-based angle variation for both attractMode on and off.
     let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI / 4, PI / 4);
     this.currentAngle += angleVariation;
 
-    const steps = 1;
-    for (let i = 0; i < steps; i++) {
-        let moveDist = 3;
-        let newPoint = p5.Vector.fromAngle(this.currentAngle).mult(moveDist).add(lastPoint);
+    newPoint = p5.Vector.fromAngle(this.currentAngle).mult(3).add(lastPoint);
 
-        // If over the hotdog and attractMode is off, combine direction away from the hotdog with noise-based variation.
-        if (this.isOverHotdog(newPoint) && !this.attractMode) {
-            let baseAngle = this.calculateAngleAwayFromHotdog(lastPoint);
-            this.currentAngle = baseAngle + angleVariation;
-            newPoint = p5.Vector.fromAngle(this.currentAngle).mult(moveDist).add(lastPoint);
-        } 
-        // If the stream enters the hotdog during attractMode, mark it as inside.
-        else if (this.isOverHotdog(newPoint) && this.attractMode && !this.insideHotdog) {
-            this.insideHotdog = true;
-        } 
-        // If the stream exits the hotdog, mark it as outside.
-        else if (!this.isOverHotdog(newPoint) && this.insideHotdog) {
-            this.insideHotdog = false;
-        }
-
-        this.points.push(newPoint);
-        lastPoint = newPoint;
+    // If in attractMode and inside assigned image, check if the new point is outside
+    if (this.attractMode && this.insideImage && !this.isOverAssignedImage(newPoint)) {
+        this.currentAngle += PI; // Flip direction
+        newPoint = p5.Vector.fromAngle(this.currentAngle).mult(3).add(lastPoint);
     }
 
-    // Increase the noise offset for the next frame.
+    this.points.push(newPoint);
     this.noiseOffset += 0.1;
 
-    // Keep the stream's length to a maximum of 100 points.
     if (this.points.length > 100) {
         this.points.shift();
     }
+
+    // Update the insideImage flag based on the last point
+    this.insideImage = this.isOverAssignedImage(lastPoint);
 }
 
-
-
-    calculateAngleTowardsHotdog(point) {
-        let hotdogCenter = createVector(width / 2, height / 2);
-        let angleTowardsHotdog = p5.Vector.sub(hotdogCenter, point).heading();
-        return angleTowardsHotdog;
+calculateAngleTowardsImage(point, imgIdx) {
+    if (this.insideImage) {
+        return random(TWO_PI);
     }
-
+    let imgCenter = createVector(width / 2, height / 2);
+    let angleTowardsImage = p5.Vector.sub(imgCenter, point).heading();
+    return angleTowardsImage;
+}
 
             display() {
                 noFill();
@@ -159,11 +191,12 @@ update() {
                 strokeWeight(1);
                 beginShape();
                 for (let pt of this.points) {
-                    vertex(pt.x, pt.y);
+                    vertex(pt.x, pt.y)
                 }
                 endShape();
             }
         }
     </script>
 </body>
+
 </html>
