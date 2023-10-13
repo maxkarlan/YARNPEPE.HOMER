@@ -20,33 +20,34 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <script>
-        let images = [];
+        let images = [null, null, null, null, null];
         const transparencyThreshold = 128;
-        const numOfStreams = 800;
+        const numOfStreams = 1500;
 
-        function preload() {
-            for (let i = 0; i < 5; i++) {
-                loadImage(`image${i + 1}.png`, img => {
-                    img.resize(img.width * 4, img.height * 4);
-                    images.push(img);
-                });
-            }
-        }
+function preload() {
+    for (let i = 0; i < 5; i++) {
+        loadImage(`image${i + 1}.png`, img => {
+            img.resize(img.width * 4, img.height * 4);
+            images[i] = img;
+        });
+    }
+}
+
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
     background(135, 206, 235);
 
-    const colors = [
-        [0, random(64, 128), 0],
-        [random(64, 124), random(180, 252), 0],
-        [255, 253, 208],
-        [145, 56, 49],
-        [53, 57, 53]
-    ];
+const colors = [
+    [0, 96, 0],
+    [96, 216, 0],
+    [255, 253, 208],
+    [145, 56, 49],
+    [53, 57, 53]
+];
 
 
-    const percentages = [0.65, 0.175, 0.175, 0.05, 0.05];
+    const percentages = [0.6, 0.15, 0.15, 0.05, 0.05];
 
     streamGroups = [];
     for (let j = 0; j < 5; j++) {
@@ -203,7 +204,7 @@ calculateAngleTowardsImage(point, imgIdx) {
             display() {
                 noFill();
                 stroke(this.color);
-                strokeWeight(1);
+                strokeWeight(.5);
                 beginShape();
                 for (let pt of this.points) {
                     vertex(pt.x, pt.y)
