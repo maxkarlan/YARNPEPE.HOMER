@@ -25,16 +25,21 @@
         const numOfStreams = 900;
         let imgCenter; // To store the cached center
       	let pointImageOverlapCache = {};  // To store overlap results for each point
+      	let circleDiameter;
 
-        function preload() {
-            for (let i = 0; i < 5; i++) {
-                loadImage(`image${i + 1}.png`, img => {
-                    img.resize(img.width * 4, img.height * 4);
-                    images[i] = img;
-                });
-            }
-        }
+function preload() {
+    let circleDiameter = Math.min(windowWidth, windowHeight);
+    let desiredImageHeight = circleDiameter * 2;  // PNGs are twice the diameter of the circle
 
+    for (let i = 0; i < 5; i++) {
+        loadImage(`image${i + 1}.png`, img => {
+            let scaleFactor = desiredImageHeight / img.height;
+            img.resize(img.width * scaleFactor, img.height * scaleFactor);
+            images[i] = img;
+        });
+    }
+}
+      
         function setup() {
             createCanvas(windowWidth, windowHeight);
             imgCenter = createVector(width / 2, height / 2);  // Compute center once
@@ -75,9 +80,12 @@ function isOverAnyImageCached(point) {
 }
 
 function draw() {
+  	
+  	
     background(135, 206, 235);
     pointImageOverlapCache = {};  // Clear the cache for each frame
-
+		drawTransparentCircle();	
+  
     for (let streams of streamGroups) {
         for (let s of streams) {
             s.update();
@@ -85,6 +93,15 @@ function draw() {
         }
     }
 }
+      
+    function drawTransparentCircle() {
+        // Transparent circle style
+        fill(255); // White color with 60% transparency
+        noStroke();
+
+        // Drawing the circle at the center of the canvas
+        ellipse(width / 2, height / 2, circleDiameter);
+    }
 
 function mousePressed() {
     for (let streams of streamGroups) {
@@ -153,6 +170,16 @@ function mousePressed() {
                 }
                 return false;
             }
+          
+          	stayWithinBounds(point) {
+    const buffer = 5;  // Small buffer to ensure that the stream doesn't touch the edge
+    if (point.x <= buffer || point.x >= width - buffer) {
+        this.currentAngle = PI - this.currentAngle;  // Reflect horizontally
+    }
+    if (point.y <= buffer || point.y >= height - buffer) {
+        this.currentAngle = -this.currentAngle;  // Reflect vertically
+    }
+}
 
 update() {
     let lastPoint = this.points[this.points.length - 1];
@@ -181,6 +208,8 @@ update() {
         this.currentAngle += PI; // Flip direction
         newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint); // Using the speed variable here too
     }
+  
+  	this.stayWithinBounds(newPoint);  // Check and adjust for bounds
 
     this.points.push(newPoint);
     this.noiseOffset += 0.1;
